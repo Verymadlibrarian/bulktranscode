@@ -32,3 +32,11 @@ Transcode all your music library from one format to another while keeping the sa
 ### Command line mode
 
 - Launch the program with arguments like this : `python bulktranscode.py --source-codec flac --target-codec opus --initial-folder "/path/to/source" --destination-folder "/path/to/destination"`
+
+## Fonctionalities
+
+- ✅ Option to copy files that are not the main targets
+- ❌ Option to set bitrate
+- ❌ Handle if there are errors from ffmpeg
+- Add more formats
+- Fork this for videos also ?
