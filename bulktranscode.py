@@ -2,12 +2,14 @@ import sys
 import os
 import subprocess
 import argparse
+import shutil
 from PyQt6.QtWidgets import (
     QApplication, QMainWindow, QDialog, QWidget, QLabel,
     QVBoxLayout, QHBoxLayout, QPushButton, QLineEdit, QComboBox,
-    QFileDialog, QStatusBar, QMessageBox, QTableWidget, QTableWidgetItem, QHeaderView
+    QFileDialog, QStatusBar, QMessageBox, QTableWidget, QTableWidgetItem, 
+    QHeaderView, QCheckBox
 )
-from PyQt6.QtGui import QAction
+from PyQt6.QtGui import QAction, QColor
 from PyQt6.QtCore import Qt, QThread, pyqtSignal
 
 # Dictionaries for codec names and file extensions
@@ -28,15 +30,16 @@ extension = {
 }
 
 class TranscodeWorker(QThread):
-    # Signal that sends the current input and output file paths
-    progress_signal = pyqtSignal(str, str)
+    # Now emitting input_file, output_file, and mode ("transcode" or "copy")
+    progress_signal = pyqtSignal(str, str, str)
 
-    def __init__(self, initial_folder, destination_folder, source_codec, target_codec):
+    def __init__(self, initial_folder, destination_folder, source_codec, target_codec, copy_other_files):
         super().__init__()
         self.initial_folder = initial_folder
         self.destination_folder = destination_folder
         self.source_codec = source_codec
         self.target_codec = target_codec
+        self.copy_other_files = copy_other_files
 
     def run(self):
         # Build a list of files to process
@@ -48,25 +51,32 @@ class TranscodeWorker(QThread):
             out_dir = os.path.join(self.destination_folder, relative_path)
             os.makedirs(out_dir, exist_ok=True)
             for file in files:
+                input_path = os.path.join(root, file)
                 if file.endswith(ext1):
-                    input_path = os.path.join(root, file)
                     output_file = file.replace(ext1, ext2)
                     output_path = os.path.join(out_dir, output_file)
                     if not os.path.exists(output_path):
-                        files_to_process.append((input_path, output_path))
+                        files_to_process.append((input_path, output_path, "transcode"))
+                elif self.copy_other_files:
+                    output_path = os.path.join(out_dir, file)
+                    if not os.path.exists(output_path):
+                        files_to_process.append((input_path, output_path, "copy"))
         
-        # Process each file and emit progress before calling ffmpeg
-        for input_file, output_path in files_to_process:
-            self.progress_signal.emit(input_file, output_path)
-            subprocess.run([
-                'ffmpeg', '-i', input_file,
-                '-acodec', name[self.target_codec],
-                output_path
-            ])
+        # Process each file and emit progress before handling it
+        for input_file, output_path, mode in files_to_process:
+            self.progress_signal.emit(input_file, output_path, mode)
+            if mode == "transcode":
+                subprocess.run([
+                    'ffmpeg', '-i', input_file,
+                    '-acodec', name[self.target_codec],
+                    output_path
+                ])
+            elif mode == "copy":
+                shutil.copy2(input_file, output_path)
 
 class PreferencesDialog(QDialog):
     def __init__(self, parent=None, current_source_codec=None, current_target_codec=None,
-                 current_initial_folder="", current_destination_folder=""):
+                 current_initial_folder="", current_destination_folder="", current_copy_other_files=False):
         super().__init__(parent)
         self.setWindowTitle("Préférences")
         self.setMinimumSize(400, 300)
@@ -74,6 +84,7 @@ class PreferencesDialog(QDialog):
         self.current_target_codec = current_target_codec
         self.current_initial_folder = current_initial_folder
         self.current_destination_folder = current_destination_folder
+        self.current_copy_other_files = current_copy_other_files
         self.init_ui()
 
     def init_ui(self):
@@ -101,6 +112,10 @@ class PreferencesDialog(QDialog):
         self.destination_folder_browse = QPushButton("Parcourir")
         self.destination_folder_browse.clicked.connect(self.browse_destination_folder)
 
+        # Copy files that are not the codec extension
+        self.copy_other_files_checkbox = QCheckBox("Copier les fichiers autre que l'extension [codec]")
+        self.copy_other_files_checkbox.setChecked(self.current_copy_other_files)
+        
         # Layout for folder selections
         folder_layout = QHBoxLayout()
         folder_layout.addWidget(self.initial_folder_line)
@@ -129,6 +144,7 @@ class PreferencesDialog(QDialog):
         layout.addLayout(folder_layout)
         layout.addWidget(destination_folder_label)
         layout.addLayout(dest_layout)
+        layout.addWidget(self.copy_other_files_checkbox)
         layout.addStretch()
         layout.addLayout(buttons_layout)
         self.setLayout(layout)
@@ -146,12 +162,12 @@ class PreferencesDialog(QDialog):
         self.destination_folder_line.setText(self.current_destination_folder)
 
     def browse_initial_folder(self):
-        folder = QFileDialog.getExistingDirectory(self, "Sélectionnez le dossier source")
+        folder = QFileDialog.getExistingDirectory(self, "Select source folder")
         if folder:
             self.initial_folder_line.setText(folder)
 
     def browse_destination_folder(self):
-        folder = QFileDialog.getExistingDirectory(self, "Sélectionnez le dossier destination")
+        folder = QFileDialog.getExistingDirectory(self, "Select destination folder")
         if folder:
             self.destination_folder_line.setText(folder)
 
@@ -164,7 +180,7 @@ class InfoDialog(QDialog):
 
     def init_ui(self):
         layout = QVBoxLayout()
-        info_label = QLabel("BulkTranscode\n\nLogiciel de transcodage de musique.\nVersion 1.0")
+        info_label = QLabel("BulkTranscode\n\Music transcoding software.\nVersion 0.55")
         info_label.setAlignment(Qt.AlignmentFlag.AlignCenter)
         layout.addWidget(info_label)
         self.setLayout(layout)
@@ -179,17 +195,18 @@ class MainWindow(QMainWindow):
         self.target_codec = None
         self.initial_folder = ""
         self.destination_folder = ""
+        self.copy_other_files = False
         self.worker = None
         self.init_ui()
 
     def init_ui(self):
         # Menu bar
         menu_bar = self.menuBar()
-        preferences_action = QAction("Préférences", self)
+        preferences_action = QAction("Preferences", self)
         preferences_action.triggered.connect(self.open_preferences)
         info_action = QAction("Info", self)
         info_action.triggered.connect(self.open_info)
-        file_menu = menu_bar.addMenu("Fichier")
+        file_menu = menu_bar.addMenu("File")
         file_menu.addAction(preferences_action)
         file_menu.addAction(info_action)
 
@@ -199,13 +216,13 @@ class MainWindow(QMainWindow):
         layout = QVBoxLayout(central_widget)
 
         # Start transcoding button
-        self.start_button = QPushButton("Démarrer le transcodage")
+        self.start_button = QPushButton("Start Bulk Transcode")
         self.start_button.clicked.connect(self.start_transcoding)
         layout.addWidget(self.start_button)
 
-        # Grid to show progress: two columns (Input File, Output File)
-        self.progress_table = QTableWidget(0, 2)
-        self.progress_table.setHorizontalHeaderLabels(["Input File", "Output File"])
+        # Progress grid: now with three columns: Input File, Mode, Output File
+        self.progress_table = QTableWidget(0, 3)
+        self.progress_table.setHorizontalHeaderLabels(["Input File", "Mode", "Output File"])
         self.progress_table.horizontalHeader().setSectionResizeMode(QHeaderView.ResizeMode.Stretch)
         layout.addWidget(self.progress_table)
 
@@ -214,17 +231,19 @@ class MainWindow(QMainWindow):
 
     def open_preferences(self):
         dialog = PreferencesDialog(self, self.source_codec, self.target_codec,
-                                   self.initial_folder, self.destination_folder)
+                                   self.initial_folder, self.destination_folder, self.copy_other_files)
         if dialog.exec() == QDialog.DialogCode.Accepted:
             self.source_codec = dialog.source_codec_combo.currentText()
             self.target_codec = dialog.target_codec_combo.currentText()
             self.initial_folder = dialog.initial_folder_line.text()
             self.destination_folder = dialog.destination_folder_line.text()
+            self.copy_other_files = dialog.copy_other_files_checkbox.isChecked()  # <-- Here
             print("Preferences updated:")
             print("Source codec:", self.source_codec)
             print("Target codec:", self.target_codec)
             print("Initial folder:", self.initial_folder)
             print("Destination folder:", self.destination_folder)
+            print("Copy other files:", self.copy_other_files)
 
     def open_info(self):
         dialog = InfoDialog(self)
@@ -243,19 +262,32 @@ class MainWindow(QMainWindow):
         self.worker = TranscodeWorker(self.initial_folder,
                                       self.destination_folder,
                                       self.source_codec,
-                                      self.target_codec)
+                                      self.target_codec,
+                                      self.copy_other_files)
         self.worker.progress_signal.connect(self.update_progress)
         self.worker.finished.connect(self.transcoding_finished)
         self.worker.start()
 
-    def update_progress(self, input_file, output_file):
-        # Only display the filename, not the full path
+    def update_progress(self, input_file, output_file, mode):
+        # Display only the filename and separate the mode into its own column with color
         input_name = os.path.basename(input_file)
         output_name = os.path.basename(output_file)
         row = self.progress_table.rowCount()
         self.progress_table.insertRow(row)
+
+        # Input File column
         self.progress_table.setItem(row, 0, QTableWidgetItem(input_name))
-        self.progress_table.setItem(row, 1, QTableWidgetItem(output_name))
+        
+        # Mode column: create an item and set its text color
+        mode_item = QTableWidgetItem("Transcode" if mode == "transcode" else "Copy")
+        if mode == "transcode":
+            mode_item.setForeground(QColor("green"))
+        else:
+            mode_item.setForeground(QColor("blue"))
+        self.progress_table.setItem(row, 1, mode_item)
+        
+        # Output File column
+        self.progress_table.setItem(row, 2, QTableWidgetItem(output_name))
 
     def transcoding_finished(self):
         self.start_button.setEnabled(True)
@@ -275,6 +307,8 @@ if __name__ == "__main__":
                         help="Target codec")
     parser.add_argument("--initial-folder", help="Folder containing source audio files")
     parser.add_argument("--destination-folder", help="Folder to output transcoded audio files")
+    parser.add_argument("--copy-others", action="store_true",
+                        help="Copy files that do not match the source codec extension")
     args = parser.parse_args()
 
     # Command-line mode if all parameters are provided
@@ -284,28 +318,30 @@ if __name__ == "__main__":
         print("Target codec:", args.target_codec)
         print("Initial folder:", args.initial_folder)
         print("Destination folder:", args.destination_folder)
-        def cli_progress(in_file, out_file):
-            print(f"Processing: {os.path.basename(in_file)} -> {os.path.basename(out_file)}")
-        def cli_transcode():
-            ext1 = extension[args.source_codec]
-            ext2 = extension[args.target_codec]
-            for root, dirs, files in os.walk(args.initial_folder):
-                relative_path = os.path.relpath(root, args.initial_folder)
-                out_dir = os.path.join(args.destination_folder, relative_path)
-                os.makedirs(out_dir, exist_ok=True)
-                for file in files:
-                    if file.endswith(ext1):
-                        input_path = os.path.join(root, file)
-                        output_file = file.replace(ext1, ext2)
-                        output_path = os.path.join(out_dir, output_file)
-                        if not os.path.exists(output_path):
-                            cli_progress(input_path, output_path)
-                            subprocess.run([
-                                'ffmpeg', '-i', input_path,
-                                '-acodec', name[args.target_codec],
-                                output_path
-                            ])
-        cli_transcode()
+        print("Copy other files:", args.copy_others)
+        ext1 = extension[args.source_codec]
+        ext2 = extension[args.target_codec]
+        for root, dirs, files in os.walk(args.initial_folder):
+            relative_path = os.path.relpath(root, args.initial_folder)
+            out_dir = os.path.join(args.destination_folder, relative_path)
+            os.makedirs(out_dir, exist_ok=True)
+            for file in files:
+                input_path = os.path.join(root, file)
+                if file.endswith(ext1):
+                    output_file = file.replace(ext1, ext2)
+                    output_path = os.path.join(out_dir, output_file)
+                    if not os.path.exists(output_path):
+                        print(f"Transcoding: {os.path.basename(input_path)} -> {os.path.basename(output_path)}")
+                        subprocess.run([
+                            'ffmpeg', '-i', input_path,
+                            '-acodec', name[args.target_codec],
+                            output_path
+                        ])
+                elif args.copy_others:
+                    output_path = os.path.join(out_dir, file)
+                    if not os.path.exists(output_path):
+                        print(f"Copying: {os.path.basename(input_path)} -> {os.path.basename(output_path)}")
+                        shutil.copy2(input_path, output_path)
         print("Transcoding completed.")
     else:
         run_gui()
