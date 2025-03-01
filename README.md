@@ -2,6 +2,20 @@
 
 Transcode all your music library from one format to another while keeping the same folder structure.
 
+### Formats supported
+
+
+- AAC
+- FLAC
+- MP3
+- VORBIS
+- WAV
+
+## Screenshots
+
+![screeenshot](https://github.com/user-attachments/assets/d1f7deb5-0d36-4c5e-88ad-5f63783fa84e)
+
+
 ## Requirements
 
 - Have `ffmpeg` in your PATH.  
