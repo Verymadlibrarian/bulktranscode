@@ -78,7 +78,7 @@ class PreferencesDialog(QDialog):
     def __init__(self, parent=None, current_source_codec=None, current_target_codec=None,
                  current_initial_folder="", current_destination_folder="", current_copy_other_files=False):
         super().__init__(parent)
-        self.setWindowTitle("Préférences")
+        self.setWindowTitle("Preferences")
         self.setMinimumSize(400, 300)
         self.current_source_codec = current_source_codec
         self.current_target_codec = current_target_codec
@@ -91,29 +91,29 @@ class PreferencesDialog(QDialog):
         layout = QVBoxLayout()
 
         # Source codec selection
-        source_codec_label = QLabel("Codec source:")
+        source_codec_label = QLabel("Source codec :")
         self.source_codec_combo = QComboBox()
         self.source_codec_combo.addItems(["flac", "wav", "mp3", "aac", "vorbis"])
 
         # Target codec selection
-        target_codec_label = QLabel("Codec cible:")
+        target_codec_label = QLabel("Desired codec:")
         self.target_codec_combo = QComboBox()
         self.target_codec_combo.addItems(["opus", "aac", "mp3", "flac", "vorbis"])
 
         # Source folder selection
-        initial_folder_label = QLabel("Dossier source:")
+        initial_folder_label = QLabel("Source folder")
         self.initial_folder_line = QLineEdit()
-        self.initial_folder_browse = QPushButton("Parcourir")
+        self.initial_folder_browse = QPushButton("Browse")
         self.initial_folder_browse.clicked.connect(self.browse_initial_folder)
 
         # Destination folder selection
-        destination_folder_label = QLabel("Dossier destination:")
+        destination_folder_label = QLabel("Final folder:")
         self.destination_folder_line = QLineEdit()
-        self.destination_folder_browse = QPushButton("Parcourir")
+        self.destination_folder_browse = QPushButton("Browse")
         self.destination_folder_browse.clicked.connect(self.browse_destination_folder)
 
         # Copy files that are not the codec extension
-        self.copy_other_files_checkbox = QCheckBox("Copier les fichiers autre que l'extension [codec]")
+        self.copy_other_files_checkbox = QCheckBox("Copy other files present along desired ones")
         self.copy_other_files_checkbox.setChecked(self.current_copy_other_files)
         
         # Layout for folder selections
@@ -128,7 +128,7 @@ class PreferencesDialog(QDialog):
         # Buttons layout
         buttons_layout = QHBoxLayout()
         ok_button = QPushButton("OK")
-        cancel_button = QPushButton("Annuler")
+        cancel_button = QPushButton("Cancel")
         ok_button.clicked.connect(self.accept)
         cancel_button.clicked.connect(self.reject)
         buttons_layout.addStretch()
@@ -160,6 +160,7 @@ class PreferencesDialog(QDialog):
                 self.target_codec_combo.setCurrentIndex(index)
         self.initial_folder_line.setText(self.current_initial_folder)
         self.destination_folder_line.setText(self.current_destination_folder)
+        #add self.copyothers
 
     def browse_initial_folder(self):
         folder = QFileDialog.getExistingDirectory(self, "Select source folder")
