@@ -4,7 +4,7 @@ Transcode all your music library from one format to another while keeping the sa
 
 ## Screenshots
 
-![screeenshot](https://github.com/user-attachments/assets/d1f7deb5-0d36-4c5e-88ad-5f63783fa84e)
+![screenshot](https://github.com/user-attachments/assets/e7876125-ade7-4f5d-904c-a1c13a69b461)
 
 ## Requirements
 
