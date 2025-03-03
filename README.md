@@ -9,7 +9,7 @@ Transcode all your music library from one format to another while keeping the sa
 ## Requirements
 
 - Have `ffmpeg` in your PATH.  
-  - On Linux: Install the `ffmpeg` package via your package manager.  
+  - On Linux: Install the `ffmpeg` package via your package manager. You may need to install `qt6base` or `qt5base` if not already installed.
   - On Windows: Download and install the essential build from [FFmpeg's official site](https://www.ffmpeg.org/download.html). To have it in your PATH, either set the env. variables or copy `ffmpeg.exe` to `C:\Windows\System32`.
 
 - Install PyQt6 with `pip install pyqt6`.
