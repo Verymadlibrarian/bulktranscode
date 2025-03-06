@@ -37,6 +37,15 @@ Transcode all your music library from one format to another while keeping the sa
 
 ## Fonctionalities
 
+### Needed fixes
+ 
+- ~~Cover not preserved when transcoding from flac to opus~~ *solved in [commit 804c8af](https://github.com/Verymadlibrarian/bulktranscode/commit/804c8af)*
+- ~~Metadata not preserved when transcoding from opus to mp3 (or more codecs)~~ *solved in [commit 365afee](https://github.com/Verymadlibrarian/bulktranscode/commit/365afee)*
+- Cover resolution lowered when transcoding to Vorbis/.ogg
+- No metadata preserved when transcoding to aac, not critical
+- Delete unnecessary arguments in ffmpeg commands used
+
+### Actual fonctionnalities
 - ✅ Option to copy files that are not the main targets
 - ❌ Option to set bitrate
 - ❌ Handle if there are errors from ffmpeg
