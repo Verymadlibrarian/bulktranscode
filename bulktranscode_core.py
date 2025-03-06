@@ -51,6 +51,8 @@ def process_file(input_file, output_file, mode, target_codec):
     if mode == "transcode":
         if target_codec == "opus":
             subprocess.run(["opusenc",input_file,output_file])
+        elif input_file[-4:] == "opus":
+            subprocess.run(["ffmpeg","-i",input_file,"-map_metadata","0:s:a:0",output_file], stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
         else:
             subprocess.run([
                 'ffmpeg', '-i', input_file,
