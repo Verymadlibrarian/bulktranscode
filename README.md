@@ -14,6 +14,8 @@ Transcode all your music library from one format to another while keeping the sa
 
 - Install PyQt6 with `pip install pyqt6`.
 
+**_NOTE:_** As ffmpeg doesn't support embedding images in opus songs from flac songs (at least), opusenc is used as a replacement to ffmpeg for opus transcoding, so make it sure it is in the PATH if you want to transcode to opus. (On Windows, like ffmpeg, place the exe in System32. On Arch, it's the `opus-tools` package.
+
 ## Usage
 
 ### Formats supported ✅
