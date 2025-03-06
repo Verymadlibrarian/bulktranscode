@@ -49,10 +49,13 @@ def process_file(input_file, output_file, mode, target_codec):
     Process a single file by transcoding it or copying it.
     """
     if mode == "transcode":
-        subprocess.run([
-            'ffmpeg', '-i', input_file,
-            '-acodec', CODEC_NAME[target_codec],
-            output_file
-        ], stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
+        if target_codec == "opus":
+            subprocess.run(["opusenc",input_file,output_file])
+        else:
+            subprocess.run([
+                'ffmpeg', '-i', input_file,
+                '-acodec', CODEC_NAME[target_codec],
+                output_file
+            ], stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
     elif mode == "copy":
         shutil.copy2(input_file, output_file)
